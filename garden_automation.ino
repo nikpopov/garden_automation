@@ -40,6 +40,7 @@
 #define MAX_DEVICES 16              // Number of devices
 #define MIN_INTERVAL 2              // Minimum display interval in seconds
 #define MAX_INTERVAL 30             // Maximum display interval in seconds
+#define LCD_BACKLIGHT_TIMEOUT 30000  // Backlight timeout in ms (30 seconds)
 
 // EEPROM addresses
 #define EEPROM_INTERVAL_ADDR 0
@@ -225,6 +226,20 @@ void loop() {
     lastEncoderPos = encoderPos;
   }
   
+  // Check for backlight timeout and energy saving mode
+  if (backlightOn && (millis() - lastActivityTime > LCD_BACKLIGHT_TIMEOUT)) {
+    lcd.noBacklight();
+    backlightOn = false;
+    
+    // Return to sleep mode if timed out from any menu
+    if (currentState != SLEEP_MODE) {
+      currentState = SLEEP_MODE;
+      showingClock = true;
+      lastDisplaySwitch = millis();
+      updateDisplay();
+    }
+  }
+  
   // Handle sleep mode display switching
   if (currentState == SLEEP_MODE) {
     if (millis() - lastDisplaySwitch >= (displayInterval * 1000UL)) {
@@ -301,6 +316,9 @@ void handleButton() {
 }
 
 void handleShortPress() {
+  // Update activity time for any button press
+  lastActivityTime = millis();
+  
   switch (currentState) {
     case SLEEP_MODE:
       // Wake up but stay in sleep mode
@@ -420,6 +438,9 @@ void handleShortPress() {
 }
 
 void handleLongPress() {
+  // Update activity time for any button press
+  lastActivityTime = millis();
+  
   switch (currentState) {
     case SLEEP_MODE:
       // Enter main menu
